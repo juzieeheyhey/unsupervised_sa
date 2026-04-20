@@ -1,0 +1,10 @@
+numpy
+torch
+transformers
+pandas
+scikit-learn
+tqdm
+matplotlib
+huggingface_hub 
+sentencepiece
+protobuf
