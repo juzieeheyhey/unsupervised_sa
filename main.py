@@ -41,6 +41,7 @@ def print_pseudo_labels(data, title="Pseudo-labels", max_examples=10):
 def self_training_loop(
     texts,
     classifier,
+    hand_labeled_data=None,
     percent=0.10,
     max_iterations=15,
     min_new_samples=1,
@@ -60,6 +61,12 @@ def self_training_loop(
     )
 
     train_pool, remaining = select_and_split(zero_shot_preds, percent)
+
+    if hand_labeled_data:
+        for item in hand_labeled_data:
+            item["confidence"] = 1.0
+        
+        train_pool.extend(hand_labeled_data)
 
     if verbose:
         print("Zero-shot predictions complete.")
@@ -138,12 +145,19 @@ def self_training_loop(
 
 
 if __name__ == "__main__":
-    FILE_PATH = "train_Vietnamese_eng.csv"
-    texts = load_data(FILE_PATH)["text"].tolist()[:100]
+    FILE_PATH = "train_Vietnamese_eng.csv"  
+    texts = load_data(FILE_PATH)["text"].tolist()
+
+    hand_df = pd.read_csv("test_Vietnamese_eng_annotation.csv")
+    my_hand_labeled = [
+        {"id": f"hand_{i}", "text": row["text"], "label": row["label"].lower()}
+        for i, row in hand_df.iterrows()
+    ]
    
     train_pool, remaining, history = self_training_loop(
         texts=texts,
         classifier=classifier,
+        hand_labeled_data=my_hand_labeled,
         percent=0.10,
         max_iterations=15,
         min_new_samples=1,
