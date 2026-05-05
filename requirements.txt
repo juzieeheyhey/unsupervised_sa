@@ -8,3 +8,4 @@ matplotlib
 huggingface_hub 
 sentencepiece
 protobuf
+accelerate

@@ -11,6 +11,7 @@ from transformers import (
 from zero_shot import zero_shot_predictions, select_and_split
 from finetune import fine_tune_model, ft_predictions
 from data_preprocess import load_data
+import argparse
 
 MODEL_NAME = f"cardiffnlp/twitter-xlm-roberta-base-sentiment"
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
@@ -145,26 +146,38 @@ def self_training_loop(
 
 
 if __name__ == "__main__":
-    FILE_PATH = "train_Vietnamese_eng.csv"  
-    texts = load_data(FILE_PATH)["text"].tolist()
 
-    hand_df = pd.read_csv("test_Vietnamese_eng_annotation.csv")
-    my_hand_labeled = [
-        {"id": f"hand_{i}", "text": row["text"], "label": row["label"].lower()}
-        for i, row in hand_df.iterrows()
-    ]
+    parser = argparse.ArgumentParser(description="Self-training loop for sentiment analysis")
+    parser.add_argument("--train_file", type=str, required=True, help="Path to unlabeled training CSV")
+    parser.add_argument("--hand_labeled_file", type=str, default=None, help="Path to hand-labeled CSV (optional)")
+    parser.add_argument("--percent", type=float, default=0.10, help="Top k%% per class to select each iteration")
+    parser.add_argument("--max_iterations", type=int, default=15, help="Maximum self-training iterations")
+    parser.add_argument("--zero_shot_batch_size", type=int, default=8)
+    parser.add_argument("--ft_batch_size", type=int, default=8)
+    parser.add_argument("--verbose", action="store_true", default=True)
+    args = parser.parse_args()
+
+    texts = load_data(args.train_file)["text"].tolist()
+
+    my_hand_labeled = None
+    if args.hand_labeled_file:
+        hand_df = pd.read_csv(args.hand_labeled_file)
+        my_hand_labeled = [
+            {"id": f"hand_{i}", "text": row["text"], "label": row["label"].lower()}
+            for i, row in hand_df.iterrows()
+        ]
    
     train_pool, remaining, history = self_training_loop(
         texts=texts,
         classifier=classifier,
         hand_labeled_data=my_hand_labeled,
-        percent=0.10,
-        max_iterations=15,
+        percent=args.percent,
+        max_iterations=args.max_iterations,
         min_new_samples=1,
         model_name=MODEL_NAME,
-        zero_shot_batch_size=8,
-        ft_batch_size=8,
-        verbose=True
+        zero_shot_batch_size=args.zero_shot_batch_size,
+        ft_batch_size=args.ft_batch_size,
+        verbose=args.verbose
     )
 
     history_df = pd.DataFrame(history)
